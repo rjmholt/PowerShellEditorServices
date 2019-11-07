@@ -25,6 +25,7 @@ namespace Microsoft.PowerShell.EditorServices.Services
     using Microsoft.PowerShell.EditorServices.Handlers;
     using Microsoft.PowerShell.EditorServices.Hosting;
     using Microsoft.PowerShell.EditorServices.Logging;
+    using Microsoft.PowerShell.EditorServices.Services.DebugAdapter;
     using Microsoft.PowerShell.EditorServices.Services.PowerShellContext;
 
     /// <summary>
@@ -1159,6 +1160,13 @@ namespace Microsoft.PowerShell.EditorServices.Services
                 // loading the user's profiles.
                 await this.GetSessionDetailsInRunspaceAsync();
             }
+        }
+
+        public IEnumerable<Breakpoint> SetBreakpoints(IEnumerable<BreakpointDetailsBase> breakpoints)
+        {
+            return BreakpointApiUtils.SetBreakpoints(
+                CurrentRunspace.Runspace.Debugger,
+                breakpoints);
         }
 
         /// <summary>
