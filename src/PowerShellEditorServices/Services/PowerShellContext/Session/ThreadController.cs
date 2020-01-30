@@ -3,6 +3,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
@@ -17,9 +18,9 @@ namespace Microsoft.PowerShell.EditorServices.Services.PowerShellContext
     /// </summary>
     internal class ThreadController
     {
-        private PromptNestFrame _nestFrame;
+        private readonly PromptNestFrame _nestFrame;
 
-        internal AsyncQueue<IPipelineExecutionRequest> PipelineRequestQueue { get; }
+        private readonly BlockingCollection<IPipelineExecutionRequest> _requestQueue;
 
         internal TaskCompletionSource<DebuggerResumeAction> FrameExitTask { get; }
 
@@ -35,7 +36,7 @@ namespace Microsoft.PowerShell.EditorServices.Services.PowerShellContext
         internal ThreadController(PromptNestFrame nestFrame)
         {
             _nestFrame = nestFrame;
-            PipelineRequestQueue = new AsyncQueue<IPipelineExecutionRequest>();
+            _requestQueue = new BlockingCollection<IPipelineExecutionRequest>();
             FrameExitTask = new TaskCompletionSource<DebuggerResumeAction>();
             ManagedThreadId = Thread.CurrentThread.ManagedThreadId;
 
@@ -63,11 +64,11 @@ namespace Microsoft.PowerShell.EditorServices.Services.PowerShellContext
         /// A task object representing the asynchronous operation. The Result property will return
         /// the output of the command invocation.
         /// </returns>
-        internal async Task<IEnumerable<TResult>> RequestPipelineExecutionAsync<TResult>(
+        internal Task<IEnumerable<TResult>> RequestPipelineExecutionAsync<TResult>(
             PipelineExecutionRequest<TResult> executionRequest)
         {
-            await PipelineRequestQueue.EnqueueAsync(executionRequest).ConfigureAwait(false);
-            return await executionRequest.Results.ConfigureAwait(false);
+            _requestQueue.Add(executionRequest);
+            return executionRequest.Results;
         }
 
         /// <summary>
@@ -80,7 +81,7 @@ namespace Microsoft.PowerShell.EditorServices.Services.PowerShellContext
         /// </returns>
         internal Task<IPipelineExecutionRequest> TakeExecutionRequestAsync()
         {
-            return PipelineRequestQueue.DequeueAsync();
+            return Task.Run(() => _requestQueue.Take());
         }
 
         /// <summary>
@@ -123,9 +124,9 @@ namespace Microsoft.PowerShell.EditorServices.Services.PowerShellContext
         /// A task object representing the frame receiving a request to exit. The Result property
         /// will return the DebuggerResumeAction supplied with the request.
         /// </returns>
-        internal async Task<DebuggerResumeAction> Exit()
+        internal Task<DebuggerResumeAction> Exit()
         {
-            return await FrameExitTask.Task.ConfigureAwait(false);
+            return FrameExitTask.Task;
         }
     }
 }
