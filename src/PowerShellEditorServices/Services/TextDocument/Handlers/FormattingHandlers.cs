@@ -3,9 +3,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.PowerShell.EditorServices.Logging;
 using Microsoft.PowerShell.EditorServices.Services;
 using Microsoft.PowerShell.EditorServices.Utility;
 using OmniSharp.Extensions.LanguageServer.Protocol.Client.Capabilities;
@@ -40,43 +42,51 @@ namespace Microsoft.PowerShell.EditorServices.Handlers
 
         public async Task<TextEditContainer> Handle(DocumentFormattingParams request, CancellationToken cancellationToken)
         {
-            var scriptFile = _workspaceService.GetFile(request.TextDocument.Uri);
-            var pssaSettings = _configurationService.CurrentSettings.CodeFormatting.GetPSSASettingsHashtable(
-                (int)request.Options.TabSize,
-                request.Options.InsertSpaces);
-
-
-            // TODO raise an error event in case format returns null
-            string formattedScript;
-            Range editRange;
-            var extent = scriptFile.ScriptAst.Extent;
-
-            // todo create an extension for converting range to script extent
-            editRange = new Range
+            try
             {
-                Start = new Position
-                {
-                    Line = extent.StartLineNumber - 1,
-                    Character = extent.StartColumnNumber - 1
-                },
-                End = new Position
-                {
-                    Line = extent.EndLineNumber - 1,
-                    Character = extent.EndColumnNumber - 1
-                }
-            };
+                var scriptFile = _workspaceService.GetFile(request.TextDocument.Uri);
+                var pssaSettings = _configurationService.CurrentSettings.CodeFormatting.GetPSSASettingsHashtable(
+                    (int)request.Options.TabSize,
+                    request.Options.InsertSpaces);
 
-            formattedScript = await _analysisService.FormatAsync(
-                scriptFile.Contents,
-                pssaSettings,
-                null).ConfigureAwait(false);
-            formattedScript = formattedScript ?? scriptFile.Contents;
 
-            return new TextEditContainer(new TextEdit
+                // TODO raise an error event in case format returns null
+                string formattedScript;
+                Range editRange;
+                var extent = scriptFile.ScriptAst.Extent;
+
+                // todo create an extension for converting range to script extent
+                editRange = new Range
+                {
+                    Start = new Position
+                    {
+                        Line = extent.StartLineNumber - 1,
+                        Character = extent.StartColumnNumber - 1
+                    },
+                    End = new Position
+                    {
+                        Line = extent.EndLineNumber - 1,
+                        Character = extent.EndColumnNumber - 1
+                    }
+                };
+
+                formattedScript = await _analysisService.FormatAsync(
+                    scriptFile.Contents,
+                    pssaSettings,
+                    null).ConfigureAwait(false);
+                formattedScript = formattedScript ?? scriptFile.Contents;
+
+                return new TextEditContainer(new TextEdit
+                {
+                    NewText = formattedScript,
+                    Range = editRange
+                });
+            }
+            catch (Exception e)
             {
-                NewText = formattedScript,
-                Range = editRange
-            });
+                string optionsStr = $"{{ tabSize: {request.Options.TabSize}; insertSpaces: {request.Options.InsertSpaces} }}";
+                _logger.LogException($"Exception occurred formatting document at '{request.TextDocument.Uri}' with options {optionsStr}", e);
+            }
         }
 
         public void SetCapability(DocumentFormattingCapability capability)
