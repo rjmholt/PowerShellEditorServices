@@ -86,6 +86,7 @@ namespace Microsoft.PowerShell.EditorServices.Handlers
             {
                 string optionsStr = $"{{ tabSize: {request.Options.TabSize}; insertSpaces: {request.Options.InsertSpaces} }}";
                 _logger.LogException($"Exception occurred formatting document at '{request.TextDocument.Uri}' with options {optionsStr}", e);
+                throw;
             }
         }
 
