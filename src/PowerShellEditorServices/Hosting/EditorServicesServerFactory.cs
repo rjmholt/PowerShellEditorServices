@@ -11,13 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.PowerShell.EditorServices.Logging;
 using Microsoft.PowerShell.EditorServices.Server;
 using Microsoft.PowerShell.EditorServices.Services;
-using Serilog;
-using Serilog.Events;
 using OmniSharp.Extensions.LanguageServer.Server;
-
-#if DEBUG
-using Serilog.Debugging;
-#endif
 
 namespace Microsoft.PowerShell.EditorServices.Hosting
 {
@@ -43,10 +37,6 @@ namespace Microsoft.PowerShell.EditorServices.Hosting
                 .WriteTo.Async(config => config.File(logPath))
                 .MinimumLevel.Is((LogEventLevel)minimumLogLevel)
                 .CreateLogger();
-
-#if DEBUG
-            SelfLog.Enable(msg => Debug.WriteLine(msg));
-#endif
 
             ILoggerFactory loggerFactory = new LoggerFactory().AddSerilog();
 
