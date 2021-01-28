@@ -314,8 +314,15 @@ namespace Microsoft.PowerShell.EditorServices.Services.Analysis
             int i = 0;
             foreach (PSObject diagnostic in diagnosticResults)
             {
-                scriptMarkers[i] = ScriptFileMarker.FromDiagnosticRecord(diagnostic);
-                i++;
+                try
+                {
+                    scriptMarkers[i] = ScriptFileMarker.FromDiagnosticRecord(diagnostic);
+                    i++;
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, $"PSScriptAnalyzer diagnostic '{diagnostic}' threw when converting to script file marker");
+                }
             }
 
             return scriptMarkers;
